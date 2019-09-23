@@ -1,0 +1,33 @@
+network:
+  structure:
+  - 3327
+  - 10
+  - 1
+output:
+  base_path: ../outputs/glu_conc
+skip_copy: false
+solver:
+  criterion: torch.nn.MSELoss
+  device: cpu
+  epoch: 50
+  l2: 1.0e-09
+  lr: 1.0e-05
+  momentum: 0.9
+train_data:
+  loader:
+    batch_size: 128
+    input_var_name: concatenated_input
+    name: matlab
+    normalize: true
+    path: ../datasets/glu_conc.mat
+    target_var_name: concatenated_output
+train_stream_handler: PlotSaveHandler
+valid_data:
+  enabled: true
+  loader:
+    batch_size: 128
+    input_var_name: concatenated_input
+    name: matlab
+    normalize: false
+    path: ../datasets/glu_conc.mat
+    target_var_name: concatenated_output
