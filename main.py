@@ -16,7 +16,6 @@ from matplotlib import pyplot as plt
 from rx import operators
 from rx import scheduler
 from rx.scheduler.eventloop import AsyncIOThreadSafeScheduler
-
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("-c", "--config", help="config file", required=True)
@@ -44,7 +43,20 @@ if __name__ == '__main__':
         valid_dataset.generate_original = False
     else:
         valid_dataset = None
-
+    if cfg.test_data.enabled:
+        print("Loading testing data...")
+        loader = cfg.test_data.loader
+        test_dataset = dataloader.load(loader, cfg_dir)
+        if cfg.test_data.loader.normalize_by_training:
+            test_dataset.normalize_with(
+                train_dataset.input_mean,
+                train_dataset.input_std,
+                train_dataset.target_mean,
+                train_dataset.target_std
+            )
+        test_dataset.generate_original = False
+    else:
+        test_dataset = None
     if not cfg.skip_copy:
         print("Creating reproducible working directory...")
         output_base_path = utils.abs_or_offset_from(cfg.output.base_path, cfg_dir)
@@ -53,13 +65,17 @@ if __name__ == '__main__':
         print("Moving dataset to target directory...")
         train_path = utils.abs_or_offset_from(cfg.train_data.loader.path, cfg_dir)
         val_path = utils.abs_or_offset_from(cfg.valid_data.loader.path, cfg_dir)
+        test_path = utils.abs_or_offset_from(cfg.test_data.loader.path, cfg_dir)
         shutil.copy(train_path, output_base_path)
-        shutil.copy(val_path, output_base_path)
+        if train_path != val_path:
+            shutil.copy(val_path, output_base_path)
+        if test_path != val_path:
+            shutil.copy(test_path, output_base_path)
 
         cfg_new = cfg.clone()
         cfg_new.train_data.loader.path = os.path.basename(cfg.train_data.loader.path)
-        cfg_new.train_data.loader.path = os.path.basename(cfg.train_data.loader.path)
         cfg_new.valid_data.loader.path = os.path.basename(cfg.valid_data.loader.path)
+        cfg_new.test_data.loader.path = os.path.basename(cfg.test_data.loader.path)
         cfg_new.output.base_path = "."
         cfg_new.skip_copy = True
 
@@ -84,7 +100,7 @@ if __name__ == '__main__':
     net = network.RamanAINetwork(cfg.network.structure)
 
     print("Begin training...")
-    stream = train.train_net(net, train_dataset, valid_dataset, cfg)
+    stream = train.train_net(net, train_dataset, valid_dataset, test_dataset, cfg)
     handler = utils.str_to_obj(f"train_stream_handlers.{cfg.train_stream_handler}")
 
     # main loop scheduler
@@ -97,18 +113,30 @@ if __name__ == '__main__':
         operators.subscribe_on(s),
     ).subscribe(observer)
 
+
     if observer.plot_sub:
         def plot_task(data):
-
-            plt.plot(data[0], data[1], c="red")
-            plt.plot(data[0], data[2], c="blue")
+            f: plt.Figure = plt.gcf()
+            f.clear()
+            ax = f.add_subplot(211)
+            ax.plot(data["epoch"], data["train"], c="red")
+            if data["valid"]:
+                ax.plot(data["epoch"], data["valid"], c="blue")
+            ax = f.add_subplot(212)
+            if data["test_output"]:
+                ax.plot(data["test_output"])
             plt.draw()
             plt.show(block=False)
             plt.pause(0.001)
 
 
+        def stop(e=None):
+            loop.stop()
+            sys.exit(0)
+
+
         observer.plot_sub \
             .pipe(operators.observe_on(main_scheduler)) \
-            .subscribe(plot_task, lambda e: loop.stop(), lambda: loop.stop())
+            .subscribe(plot_task, stop, stop)
 
     loop.run_forever()

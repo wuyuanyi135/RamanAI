@@ -10,17 +10,17 @@ import utils
 from dataset import RamanDataset
 
 
-
-def make_dataset(data: torch.Tensor, target: torch.Tensor, normalize = True):
-    assert data.shape[0] == target.shape[0]
+def make_dataset(data: torch.Tensor, target: torch.Tensor = None, normalize=True):
     dataset = RamanDataset(data, target, normalize)
     return dataset
 
 
-
 def load_matlab_file(loader_node: CfgNode):
     data = sio.loadmat(loader_node.path)
-    return make_dataset(data[loader_node.input_var_name], data[loader_node.target_var_name], loader_node.normalize)
+    try:
+        return make_dataset(data[loader_node.input_var_name], data[loader_node.target_var_name], loader_node.normalize)
+    except:
+        return make_dataset(data[loader_node.input_var_name], None, loader_node.normalize)
 
 
 def load(loader_node: CfgNode, cfg_path: str = "."):

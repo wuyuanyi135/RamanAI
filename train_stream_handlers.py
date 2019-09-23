@@ -39,18 +39,22 @@ class PlotSaveHandler(rx.core.Observer):
         # save
         torch.save(net, os.path.join(self.base_path, "weights", f"weights_{e}.pkl"))
 
-        self.plot_sub.on_next((self.e, self.train_loss, self.val_loss))
+        self.plot_sub.on_next({
+            "epoch": self.e,
+            "train": self.train_loss,
+            "valid": self.val_loss,
+            "test_output": value["test_output"],
+        })
 
     def on_error(self, error: Exception) -> None:
         raise error
 
     def on_completed(self) -> None:
         print("Completed")
-        with open(os.path.join(self.base_path, f"loss.csv"), "w") as f:
+        with open(os.path.join(self.base_path, f"loss.csv"), "w", newline='') as f:
             writer = csv.writer(f)
             writer.writerow(["Epoch", "Train", "Valid"])
             for e, t, v, in zip(self.e, self.train_loss, self.val_loss):
                 writer.writerow([e, t, v])
 
         self.plot_sub.on_completed()
-        sys.exit(0)

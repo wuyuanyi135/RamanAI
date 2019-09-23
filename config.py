@@ -43,6 +43,16 @@ cfg.network.structure = [3327, 10, 1]
 
 cfg.train_stream_handler = "PlotSaveHandler"
 
+cfg.test_data = CN()
+cfg.test_data.enabled = True
+cfg.test_data.loader = CN()
+cfg.test_data.loader.name = "matlab"
+cfg.test_data.loader.batch_size = 128
+cfg.test_data.loader.normalize_by_training = True
+cfg.test_data.loader.path = "../datasets/glu_conc.mat"
+cfg.test_data.loader.normalize = False
+cfg.test_data.loader.input_var_name = "concatenated_input"
+
 if __name__ == '__main__':
     with open(os.path.join("configs", "default.yaml"), "w") as f:
         f.write(cfg.dump())
